@@ -1,19 +1,19 @@
-create table user {
+create table user (
     id bigserial primary key not null,
     email varchar(255) unique not null,
     password varchar(255) not null,
     created_at timestamp default current_timestamp,
-    userName varchar(255) unique not null,
-}
+    userName varchar(255) unique not null
+)
 
-create table polls {
+create table polls (
     id bigserial primary key not null,
     question varchar(255) not null,
     isActive boolean default true,
     pollType varchar(50) not null,
     creator_id bigint not null references user(id) on delete cascade,
     created_at timestamp default current_timestamp
-}
+)
 
 create table bookmarkPolls {
     id bigserial primary key not null,
