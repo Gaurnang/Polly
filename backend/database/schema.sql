@@ -1,49 +1,93 @@
-create table user (
-    id bigserial primary key not null,
-    email varchar(255) unique not null,
-    password varchar(255) not null,
-    created_at timestamp default current_timestamp,
-    userName varchar(255) unique not null
-)
+-- USERS
 
-create table polls (
-    id bigserial primary key not null,
-    question varchar(255) not null,
-    isActive boolean default true,
-    pollType varchar(50) not null,
-    creator_id bigint not null references user(id) on delete cascade,
-    created_at timestamp default current_timestamp
-)
-
-create table bookmarkPolls {
-    id bigserial primary key not null,
-    user_id bigint not null references user(id),
-    poll_id bigint not null references polls(id) on delete cascade,
-    created_at timestamp default current_timestamp,
-    unique(user_id, poll_id)
-}
-
-create table pollOptions {
-    id bigserial primary key not null,
-    poll_id bigint not null references polls(id) on delete cascade,
-    option_text varchar(255) not null,
-    created_at timestamp default current_timestamp,
-}
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 
+
+-- POLLS
+
+CREATE TABLE polls (
+    id BIGSERIAL PRIMARY KEY,
+    question VARCHAR(255) NOT NULL,
+    poll_type VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+-- POLL OPTIONS
+-- Used for:
+-- single_choice polls
+-- yes_no polls (optional)
+
+CREATE TABLE poll_options (
+    id BIGSERIAL PRIMARY KEY,
+    poll_id BIGINT NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+    option_text VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+-- POLL RESPONSES
 
 CREATE TABLE poll_responses (
     id BIGSERIAL PRIMARY KEY,
 
     poll_id BIGINT NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id),
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-    option_id BIGINT,
-    rating INTEGER,
+    option_id BIGINT REFERENCES poll_options(id) ON DELETE CASCADE,
+
+    rating INTEGER CHECK (
+        rating IS NULL OR (rating >= 1 AND rating <= 5)
+    ),
+
     text_response TEXT,
+
     boolean_response BOOLEAN,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE(user_id, poll_id)
+);
+
+
+
+-- BOOKMARKS
+
+CREATE TABLE bookmark_polls (
+    id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    poll_id BIGINT NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(user_id, poll_id)
+);
+
+
+
+-- REFRESH TOKENS
+
+CREATE TABLE refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    token TEXT NOT NULL,
+
+    expires_at TIMESTAMP NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
