@@ -1,521 +1,103 @@
-import pool from "../config/db.js";
+import {
+  findResponse,
+  insertResponse,
+  updateResponseRecord,
+  deleteResponseRecord,
+} from "../repository/response.repository.js";
 
-export const createResponse = async (pollId, userId, body) => { 
+import { findPollById, findOptionsByPollId } from "../repository/poll.repository.js";
 
-    const pollResult = await pool.query(
-        `
-        SELECT *
-        FROM polls
-        WHERE id = $1
-        `,
-        [pollId]
-    );
+const validatePayload = async (poll, body) => {
+  const { poll_type } = poll;
+  const { option_id, rating, text_response, boolean_response } = body;
 
-    if (!pollResult.rows.length) {
-        throw new Error("Poll not found");
-    }
-
-    const poll = pollResult.rows[0];
-
-    if (!poll.is_active) {
-        throw new Error("Poll is closed");
-    }
-
-    const existing = await pool.query(
-        `
-        SELECT *
-        FROM poll_responses
-        WHERE poll_id = $1
-        AND user_id = $2
-        `,
-        [pollId, userId]
-    );
-
-    if (existing.rows.length) {
-        throw new Error("You have already responded to this poll.");
-    }
-
-    if (poll.poll_type === "yes_no") {
-
-        if (typeof body.booleanResponse !== "boolean") {
-            throw new Error("booleanResponse is required");
-        }
-
-        const result = await pool.query(
-            `
-            INSERT INTO poll_responses
-            (
-                poll_id,
-                user_id,
-                boolean_response
-            )
-            VALUES ($1,$2,$3)
-            RETURNING *
-            `,
-            [
-                pollId,
-                userId,
-                body.booleanResponse
-            ]
-        );
-
-        return result.rows[0];
-    }
-
-    if (poll.poll_type === "single_choice") {
-
-        if (!body.optionId) {
-            throw new Error("optionId is required");
-        }
-
-        const option = await pool.query(
-            `
-            SELECT *
-            FROM poll_options
-            WHERE id = $1
-            AND poll_id = $2
-            `,
-            [
-                body.optionId,
-                pollId
-            ]
-        );
-
-        if (!option.rows.length) {
-            throw new Error("Invalid option");
-        }
-
-        const result = await pool.query(
-            `
-            INSERT INTO poll_responses
-            (
-                poll_id,
-                user_id,
-                option_id
-            )
-            VALUES ($1,$2,$3)
-            RETURNING *
-            `,
-            [
-                pollId,
-                userId,
-                body.optionId
-            ]
-        );
-
-        return result.rows[0];
-
-    }
-
-    if (poll.poll_type === "star_rating") {
-
-        if (
-            !body.rating ||
-            body.rating < 1 ||
-            body.rating > 5
-        ) {
-
-            throw new Error(
-                "Rating must be between 1 and 5"
-            );
-
-        }
-
-        const result = await pool.query(
-            `
-            INSERT INTO poll_responses
-            (
-                poll_id,
-                user_id,
-                rating
-            )
-            VALUES ($1,$2,$3)
-            RETURNING *
-            `,
-            [
-                pollId,
-                userId,
-                body.rating
-            ]
-        );
-
-        return result.rows[0];
-
-    }
-
-    if (poll.poll_type === "open_ended") {
-
-        if (
-            !body.textResponse ||
-            body.textResponse.trim() === ""
-        ) {
-
-            throw new Error(
-                "Response cannot be empty"
-            );
-
-        }
-
-        const result = await pool.query(
-            `
-            INSERT INTO poll_responses
-            (
-                poll_id,
-                user_id,
-                text_response
-            )
-            VALUES ($1,$2,$3)
-            RETURNING *
-            `,
-            [
-                pollId,
-                userId,
-                body.textResponse
-            ]
-        );
-
-        return result.rows[0];
-
-    }
-
-    throw new Error("Invalid poll type");
-
-};
-
-//submit reponse
-export const submitResponseService = async (pollId, userId, data) => {
-
-  const {
-    option_id,
-    rating,
-    text_response,
-    boolean_response,
-  } = data;
-
-  const pollResult = await pool.query(
-    `
-    SELECT *
-    FROM polls
-    WHERE id = $1
-    `,
-    [pollId]
-  );
-
-  if (!pollResult.rows.length) {
-    throw new Error("Poll not found.");
-  }
-
-  const poll = pollResult.rows[0];
-
-  // ----------------------------------
-  // Poll Active?
-  // ----------------------------------
-
-  if (!poll.is_active) {
-    throw new Error("Poll is closed.");
-  }
-
-  // ----------------------------------
-  // Already Responded?
-  // ----------------------------------
-
-  const responseResult = await pool.query(
-    `
-    SELECT *
-    FROM poll_responses
-    WHERE poll_id = $1
-    AND user_id = $2
-    `,
-    [pollId, userId]
-  );
-
-  if (responseResult.rows.length) {
-    throw new Error("You have already responded to this poll.");
-  }
-
-  // ----------------------------------
-  // Validate According To Poll Type
-  // ----------------------------------
-
-  switch (poll.poll_type) {
-
-    case "boolean":
-
-      if (typeof boolean_response !== "boolean") {
-        throw new Error(
-          "Boolean response is required."
-        );
+  switch (poll_type) {
+    case "single":
+    case "single_choice": {
+      if (option_id == null) {
+        throw { status: 400, message: "option_id is required for single-choice polls." };
       }
-
-      break;
-
-    case "rating":
-
-      if (
-        rating === undefined ||
-        rating < 1 ||
-        rating > 5
-      ) {
-        throw new Error(
-          "Rating must be between 1 and 5."
-        );
+      const options = await findOptionsByPollId(poll.id);
+      const valid = options.some((o) => String(o.id) === String(option_id));
+      if (!valid) {
+        throw { status: 400, message: "option_id does not belong to this poll." };
       }
+      return { option_id, rating: null, text_response: null, boolean_response: null };
+    }
 
-      break;
-
-    case "text":
-
-      if (
-        !text_response ||
-        text_response.trim() === ""
-      ) {
-        throw new Error(
-          "Text response is required."
-        );
+    case "rating": {
+      if (rating == null) {
+        throw { status: 400, message: "rating is required for rating polls." };
       }
-
-      break;
-
-    case "single_choice":
-
-      if (!option_id) {
-        throw new Error(
-          "Option is required."
-        );
+      const r = parseInt(rating, 10);
+      if (isNaN(r) || r < 1 || r > 5) {
+        throw { status: 400, message: "rating must be an integer between 1 and 5." };
       }
+      return { option_id: null, rating: r, text_response: null, boolean_response: null };
+    }
 
-      // -------------------------------
-      // Check Option Belongs To Poll
-      // -------------------------------
-
-      const optionResult = await pool.query(
-        `
-        SELECT *
-        FROM poll_options
-        WHERE id = $1
-        AND poll_id = $2
-        `,
-        [option_id, pollId]
-      );
-
-      if (!optionResult.rows.length) {
-        throw new Error(
-          "Invalid poll option."
-        );
+    case "text": {
+      if (!text_response || !String(text_response).trim()) {
+        throw { status: 400, message: "text_response is required for text polls." };
       }
+      return { option_id: null, rating: null, text_response: String(text_response).trim(), boolean_response: null };
+    }
 
-      break;
+    case "boolean": {
+      if (boolean_response == null) {
+        throw { status: 400, message: "boolean_response is required for yes/no polls." };
+      }
+      return { option_id: null, rating: null, text_response: null, boolean_response: Boolean(boolean_response) };
+    }
 
     default:
-      throw new Error("Invalid poll type.");
+      throw { status: 400, message: "Unknown poll type." };
   }
-
-  const result = await pool.query(
-    `
-    INSERT INTO poll_responses
-    (
-      poll_id,
-      user_id,
-      option_id,
-      rating,
-      text_response,
-      boolean_response
-    )
-    VALUES
-    ($1,$2,$3,$4,$5,$6)
-    RETURNING *
-    `,
-    [
-      pollId,
-      userId,
-      option_id || null,
-      rating || null,
-      text_response || null,
-      boolean_response ?? null,
-    ]
-  );
-
-  return result.rows[0];
 };
 
-
-export const updateResponseService = async (
-  pollId,
-  userId,
-  data
-) => {
-
-  const {
-    option_id,
-    rating,
-    text_response,
-    boolean_response,
-  } = data;
-
-
-  const pollResult = await pool.query(
-    `
-    SELECT *
-    FROM polls
-    WHERE id = $1
-    `,
-    [pollId]
-  );
-
-  if (!pollResult.rows.length) {
-    throw new Error("Poll not found.");
+export const submitResponse = async (poll_id, user_id, body) => {
+  const poll = await findPollById(poll_id);
+  if (!poll) {
+    throw { status: 404, message: "Poll not found." };
   }
-
-  const poll = pollResult.rows[0];
-
-
   if (!poll.is_active) {
-    throw new Error("Poll is closed.");
+    throw { status: 403, message: "This poll is closed and no longer accepting responses." };
   }
 
-  const responseResult = await pool.query(
-    `
-    SELECT *
-    FROM poll_responses
-    WHERE poll_id=$1
-    AND user_id=$2
-    `,
-    [pollId, userId]
-  );
-
-  if (!responseResult.rows.length) {
-    throw new Error("Response not found.");
+  const existing = await findResponse(poll_id, user_id);
+  if (existing) {
+    throw { status: 409, message: "You have already responded to this poll." };
   }
 
-  // ----------------------------------
-  // Validation
-  // ----------------------------------
+  const payload = await validatePayload(poll, body);
 
-  switch (poll.poll_type) {
-
-    case "boolean":
-
-      if (typeof boolean_response !== "boolean") {
-        throw new Error("Boolean response required.");
-      }
-
-      break;
-
-    case "rating":
-
-      if (
-        rating === undefined ||
-        rating < 1 ||
-        rating > 5
-      ) {
-        throw new Error("Rating must be between 1 and 5.");
-      }
-
-      break;
-
-    case "text":
-
-      if (
-        !text_response ||
-        text_response.trim() === ""
-      ) {
-        throw new Error("Text response required.");
-      }
-
-      break;
-
-    case "single_choice":
-
-      if (!option_id) {
-        throw new Error("Option required.");
-      }
-
-      const optionResult = await pool.query(
-        `
-        SELECT *
-        FROM poll_options
-        WHERE id=$1
-        AND poll_id=$2
-        `,
-        [option_id, pollId]
-      );
-
-      if (!optionResult.rows.length) {
-        throw new Error("Invalid option.");
-      }
-
-      break;
-
-  }
-
-  // ----------------------------------
-  // Update
-  // ----------------------------------
-
-  const result = await pool.query(
-    `
-    UPDATE poll_responses
-    SET
-
-        option_id=$1,
-
-        rating=$2,
-
-        text_response=$3,
-
-        boolean_response=$4
-
-    WHERE
-
-        poll_id=$5
-
-    AND
-
-        user_id=$6
-
-    RETURNING *
-    `,
-    [
-      option_id || null,
-      rating || null,
-      text_response || null,
-      boolean_response ?? null,
-      pollId,
-      userId,
-    ]
-  );
-
-  return result.rows[0];
-
+  return await insertResponse({ poll_id, user_id, ...payload });
 };
 
-
-export const deleteResponseService = async (
-  pollId,
-  userId
-) => {
-
-  const response = await pool.query(
-    `
-    SELECT *
-    FROM poll_responses
-    WHERE poll_id=$1
-    AND user_id=$2
-    `,
-    [pollId, userId]
-  );
-
-  if (!response.rows.length) {
-    throw new Error("Response not found.");
+export const updateResponse = async (poll_id, user_id, body) => {
+  const poll = await findPollById(poll_id);
+  if (!poll) {
+    throw { status: 404, message: "Poll not found." };
+  }
+  if (!poll.is_active) {
+    throw { status: 403, message: "This poll is closed." };
   }
 
-  await pool.query(
-    `
-    DELETE FROM poll_responses
-    WHERE poll_id=$1
-    AND user_id=$2
-    `,
-    [pollId, userId]
-  );
+  const existing = await findResponse(poll_id, user_id);
+  if (!existing) {
+    throw { status: 404, message: "No existing response found to update." };
+  }
 
+  const payload = await validatePayload(poll, body);
+
+  return await updateResponseRecord(poll_id, user_id, payload);
+};
+
+export const deleteResponse = async (poll_id, user_id) => {
+  const existing = await findResponse(poll_id, user_id);
+  if (!existing) {
+    throw { status: 404, message: "No response found to delete." };
+  }
+
+  return await deleteResponseRecord(poll_id, user_id);
 };

@@ -1,20 +1,20 @@
 import {
-  submitResponse,
-  updateResponse,
-  deleteResponse,
-} from "../services/response.service.js";
+  addBookmark,
+  getBookmarks,
+  removeBookmark,
+} from "../services/bookmark.service.js";
 
-export const submitResponseHandler = async (req, res) => {
+export const addBookmarkHandler = async (req, res) => {
   try {
-    const poll_id = req.params.id;
     const user_id = req.user.id;
+    const poll_id = req.params.pollId;
 
-    const response = await submitResponse(poll_id, user_id, req.body);
+    const bookmark = await addBookmark(user_id, poll_id);
 
     return res.status(201).json({
       success: true,
-      message: "Response submitted successfully.",
-      data: { response },
+      message: "Poll bookmarked successfully.",
+      data: { bookmark },
     });
   } catch (err) {
     return res.status(err.status || 500).json({
@@ -24,17 +24,14 @@ export const submitResponseHandler = async (req, res) => {
   }
 };
 
-export const updateResponseHandler = async (req, res) => {
+export const getBookmarksHandler = async (req, res) => {
   try {
-    const poll_id = req.params.id;
     const user_id = req.user.id;
-
-    const response = await updateResponse(poll_id, user_id, req.body);
+    const bookmarks = await getBookmarks(user_id);
 
     return res.status(200).json({
       success: true,
-      message: "Response updated successfully.",
-      data: { response },
+      data: { bookmarks },
     });
   } catch (err) {
     return res.status(err.status || 500).json({
@@ -44,16 +41,16 @@ export const updateResponseHandler = async (req, res) => {
   }
 };
 
-export const deleteResponseHandler = async (req, res) => {
+export const removeBookmarkHandler = async (req, res) => {
   try {
-    const poll_id = req.params.id;
     const user_id = req.user.id;
+    const poll_id = req.params.pollId;
 
-    await deleteResponse(poll_id, user_id);
+    await removeBookmark(user_id, poll_id);
 
     return res.status(200).json({
       success: true,
-      message: "Response deleted successfully.",
+      message: "Bookmark removed successfully.",
     });
   } catch (err) {
     return res.status(err.status || 500).json({

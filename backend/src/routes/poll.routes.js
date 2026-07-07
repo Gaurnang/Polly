@@ -1,28 +1,33 @@
 import express from "express";
-
 import {
-  createPoll,
-  getAllPolls,
-  getPollById,
-  updatePoll,
-  deletePoll,
-  closePoll,
+  createPollHandler,
+  getAllPollsHandler,
+  getPollByIdHandler,
+  updatePollHandler,
+  deletePollHandler,
+  closePollHandler,
 } from "../controllers/poll.controller.js";
-
 import authenticate from "../middleware/authenticate.js";
+import optionalAuthenticate from "../middleware/optionalAuthenticate.js";
 
 const router = express.Router();
 
-router.get("/", getAllPolls);
+// GET  /api/polls          — public
+router.get("/", optionalAuthenticate, getAllPollsHandler);
 
-router.get("/:id", getPollById);
+// GET  /api/polls/:id      — public
+router.get("/:id", optionalAuthenticate, getPollByIdHandler);
 
-router.post("/", authenticate, createPoll);
+// POST /api/polls          — protected
+router.post("/", authenticate, createPollHandler);
 
-router.put("/:id", authenticate, updatePoll);
+// PUT  /api/polls/:id      — protected (creator only)
+router.put("/:id", authenticate, updatePollHandler);
 
-router.delete("/:id", authenticate, deletePoll);
+// DELETE /api/polls/:id    — protected (creator only)
+router.delete("/:id", authenticate, deletePollHandler);
 
-router.patch("/:id/close", authenticate, closePoll);
+// PATCH /api/polls/:id/close — protected (creator only)
+router.patch("/:id/close", authenticate, closePollHandler);
 
 export default router;

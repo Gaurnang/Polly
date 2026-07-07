@@ -1,116 +1,85 @@
 import bcrypt from "bcrypt";
-import pool from "../config/db.js";
 import jwt from "jsonwebtoken";
 import {
-    generateAccessToken,
-    generateRefreshToken
+  findUserByEmail,
+  findUserByUsername,
+  findUserById,
+  createUser,
+} from "../repository/auth.repository.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
 } from "../utils/jwt.js";
 
-export const refreshAccessToken = async (refreshToken) => {
+const SALT_ROUNDS = 12;
 
-    if (!refreshToken) {
-        throw new Error("Refresh token missing.");
-    }
+export const registerUser = async ({ email, username, password }) => {
+  // Check for duplicates
+  const existingEmail = await findUserByEmail(email);
+  if (existingEmail) {
+    throw { status: 409, message: "Email is already registered." };
+  }
 
-    let decoded;
+  const existingUsername = await findUserByUsername(username);
+  if (existingUsername) {
+    throw { status: 409, message: "Username is already taken." };
+  }
 
-    try {
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-        decoded = jwt.verify(
-            refreshToken,
-            process.env.REFRESH_TOKEN_SECRET
-        );
+  const user = await createUser({ email, username, password: hashedPassword });
 
-    } catch (err) {
+  const accessToken  = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-        throw new Error("Invalid refresh token.");
-
-    }
-
-    const tokenResult = await pool.query(
-        `
-        SELECT *
-        FROM refresh_tokens
-        WHERE token = $1
-        `,
-        [refreshToken]
-    );
-
-    if (!tokenResult.rows.length) {
-
-        throw new Error("Refresh token revoked.");
-
-    }
-
-    const userResult = await pool.query(
-        `
-        SELECT id,email,username
-        FROM users
-        WHERE id = $1
-        `,
-        [decoded.id]
-    );
-
-    if (!userResult.rows.length) {
-        throw new Error("User not found.");
-    }
-
-    const user = userResult.rows[0];
-
-    const accessToken = generateAccessToken(user);
-
-    return {
-        accessToken
-    };
-
+  return { user, accessToken, refreshToken };
 };
 
-export const registerUser = async (username, email, password) => {
+export const loginUser = async ({ email, password }) => {
+  const user = await findUserByEmail(email);
+  if (!user) {
+    throw { status: 401, message: "Invalid email or password." };
+  }
 
-    const exists = await pool.query(
-        "SELECT * FROM users WHERE email = $1",
-        [email]
-    );
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw { status: 401, message: "Invalid email or password." };
+  }
 
-    if (exists.rows.length) {
-        throw new Error("Email already exists");
-    }
+  const safeUser = {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    created_at: user.created_at,
+  };
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+  const accessToken  = generateAccessToken(safeUser);
+  const refreshToken = generateRefreshToken(safeUser);
 
-    const result = await pool.query(
-        `
-        INSERT INTO users(username,email,password)
-        VALUES($1,$2,$3)
-        RETURNING id,username,email
-        `,
-        [username, email, hashedPassword]
-    );
-
-    return result.rows[0];
+  return { user: safeUser, accessToken, refreshToken };
 };
 
-export const loginUser = async (email, password) => {
+export const getMe = async (userId) => {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  return user;
+};
 
-    const result = await pool.query(
-        "SELECT * FROM users WHERE email=$1",
-        [email]
+export const refreshAccessToken = (refreshToken) => {
+  if (!refreshToken) {
+    throw { status: 401, message: "Refresh token missing." };
+  }
+
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
     );
-
-    if (!result.rows.length) {
-        throw new Error("Invalid credentials");
-    }
-
-    const user = result.rows[0];
-
-    const validPassword = await bcrypt.compare(
-        password,
-        user.password
-    );
-
-    if (!validPassword) {
-        throw new Error("Invalid credentials");
-    }
-
-    return user;
+    const newAccessToken = generateAccessToken({ id: decoded.id });
+    return newAccessToken;
+  } catch {
+    throw { status: 403, message: "Invalid or expired refresh token." };
+  }
 };

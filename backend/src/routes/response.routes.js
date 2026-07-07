@@ -1,19 +1,20 @@
 import express from "express";
-
 import authenticate from "../middleware/authenticate.js";
-
 import {
-  submitResponse,
-  updateResponse,
-  deleteResponse,
+  submitResponseHandler,
+  updateResponseHandler,
+  deleteResponseHandler,
 } from "../controllers/response.controller.js";
 
 const router = express.Router();
 
-router.post("/:id/respond", authenticate, submitResponse);
+// POST   /api/polls/:id/respond  — protected
+router.post("/:id/respond", authenticate, submitResponseHandler);
 
-router.put("/:id/respond", authenticate, updateResponse);
+// PUT    /api/polls/:id/respond  — protected
+router.put("/:id/respond", authenticate, updateResponseHandler);
 
-router.delete("/:id/respond", authenticate, deleteResponse);
+// DELETE /api/polls/:id/respond  — protected
+router.delete("/:id/respond", authenticate, deleteResponseHandler);
 
 export default router;
