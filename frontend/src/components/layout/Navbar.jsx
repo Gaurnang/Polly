@@ -65,7 +65,7 @@ export default function Navbar() {
     <>
       <header className="md:hidden fixed top-0 left-0 right-0 z-50 border-b border-white/[0.07] bg-[#0b0d12]/95 backdrop-blur-xl">
         <div className="h-16 px-4 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5">
             <span className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </span>
@@ -95,7 +95,7 @@ export default function Navbar() {
       >
         <div className="h-full flex flex-col p-4">
           <div className="flex items-center justify-between mb-7">
-            <Link to="/home" className="flex items-center gap-2.5" onClick={() => setMenuOpen(false)}>
+            <Link to="/" className="flex items-center gap-2.5" onClick={() => setMenuOpen(false)}>
               <span className="w-9 h-9 rounded-lg bg-violet-600 flex items-center justify-center">
                 <Zap className="w-5 h-5 text-white" />
               </span>

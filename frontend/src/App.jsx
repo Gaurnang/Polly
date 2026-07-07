@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import Navbar from "./components/layout/Navbar";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import LandingPage     from "./pages/LandingPage";
 import LoginPage       from "./pages/LoginPage";
 import RegisterPage    from "./pages/RegisterPage";
 import HomePage        from "./pages/HomePage";
@@ -17,11 +16,6 @@ import useAuthStore    from "./stores/authStore";
 function PublicOnlyRoute({ children }) {
   const { isAuthenticated } = useAuthStore();
   return isAuthenticated ? <Navigate to="/home" replace /> : children;
-}
-
-function LandingRoute() {
-  const { isAuthenticated } = useAuthStore();
-  return isAuthenticated ? <Navigate to="/home" replace /> : <LandingPage />;
 }
 
 function AppRoutes() {
@@ -50,7 +44,7 @@ function AppRoutes() {
       <main className={isAuthenticated ? "md:pl-64" : ""}>
         <Routes>
           {/* Public */}
-          <Route path="/" element={<LandingRoute />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/login"    element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
 
