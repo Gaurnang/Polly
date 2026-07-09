@@ -16,7 +16,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin: "https://polly-mn5rb1vhg-gaurnangs-projects.vercel.app/",
+    origin: "https://polly-theta.vercel.app/",
     credintials: true
 }));
 
