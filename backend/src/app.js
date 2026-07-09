@@ -16,8 +16,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin: "https://polly-theta.vercel.app/",
-    credintials: true
+    origin: "https://polly-theta.vercel.app",
+    credentials: true
 }));
 
 app.use("/api/auth", authRoutes);
