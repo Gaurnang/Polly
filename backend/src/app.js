@@ -11,13 +11,31 @@ import myVoteRoutes from "./routes/myvote.routes.js";
 
 const app = express();
 
+const allowedOrigins = new Set(
+    [
+        process.env.CLIENT_URL,
+        process.env.CORS_ORIGIN,
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "https://polly-theta.vercel.app",
+    ].filter(Boolean)
+);
+
 app.use(express.json());
 
 app.use(cookieParser());
 
 app.use(cors({
-    origin: "https://polly-theta.vercel.app",
-    credentials: true
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
 }));
 
 app.use("/api/auth", authRoutes);
