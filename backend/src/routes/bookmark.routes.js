@@ -8,13 +8,10 @@ import {
 
 const router = express.Router();
 
-// POST   /api/bookmarks/:pollId — protected
 router.post("/:pollId", authenticate, addBookmarkHandler);
 
-// GET    /api/bookmarks         — protected
 router.get("/", authenticate, getBookmarksHandler);
 
-// DELETE /api/bookmarks/:pollId — protected
 router.delete("/:pollId", authenticate, removeBookmarkHandler);
 
 export default router;

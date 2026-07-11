@@ -31,10 +31,17 @@ export const createPollHandler = async (req, res) => {
 
 export const getAllPollsHandler = async (req, res) => {
   try {
-    const polls = await getAllPolls(req.user?.id);
+    const { page, poll_type, is_active } = req.query;
+    const filters = {
+      page: parseInt(page, 10) || 1,
+      limit: 10,
+      poll_type,
+      is_active
+    };
+    const result = await getAllPolls(req.user?.id, filters);
     return res.status(200).json({
       success: true,
-      data: { polls },
+      data: result,
     });
   } catch (err) {
     return res.status(err.status || 500).json({

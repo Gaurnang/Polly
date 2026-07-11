@@ -20,14 +20,23 @@ const usePollStore = create((set, get) => ({
   isSubmitting: false,
 
   // ── Polls ──────────────────────────────────────────────
-  fetchPolls: async () => {
+  fetchPolls: async (params = {}, append = false) => {
     set({ isLoading: true });
     try {
-      const { data } = await api.get("/polls");
-      set({ polls: (data.data.polls ?? []).map(normalizePoll) });
+      const { data } = await api.get("/polls", { params });
+      const responseData = data.data || {};
+      const fetchedPolls = responseData.polls || [];
+      const newPolls = fetchedPolls.map(normalizePoll);
+      
+      set((state) => ({
+        polls: append ? [...state.polls, ...newPolls] : newPolls,
+      }));
+      
+      return { newPolls, pagination: responseData.pagination };
     } catch (err) {
       console.error("fetchPolls failed:", err?.response?.data || err.message);
-      set({ polls: [] });
+      if (!append) set({ polls: [] });
+      return { newPolls: [], pagination: null };
     } finally {
       set({ isLoading: false });
     }

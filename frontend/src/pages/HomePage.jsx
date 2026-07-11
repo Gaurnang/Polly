@@ -1,22 +1,63 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Activity, CheckCircle2, Search, SlidersHorizontal, Users } from "lucide-react";
+import { Activity, CheckCircle2, SlidersHorizontal, Users, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import usePollStore from "../stores/pollStore";
 import PollCard from "../components/polls/PollCard";
 import { Spinner } from "../components/ui/Spinner";
-import Input from "../components/ui/Input";
 import { POLL_TYPE_META } from "../lib/utils";
 
 const TYPES = ["all", "single", "rating", "text", "boolean"];
+const STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "true", label: "Active" },
+  { value: "false", label: "Expired" },
+];
 
 export default function HomePage() {
   const { polls, fetchPolls, isLoading } = usePollStore();
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const filter = searchParams.get("poll_type") || "all";
+  const isActiveFilter = searchParams.get("is_active") || "all";
+  const page = parseInt(searchParams.get("page"), 10) || 1;
+  
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchPolls();
-  }, [fetchPolls]);
+    const params = { page };
+    if (filter !== "all") params.poll_type = filter;
+    if (isActiveFilter !== "all") params.is_active = isActiveFilter;
+    
+    // Pass append=false to replace the current polls (classic pagination)
+    fetchPolls(params, false).then(({ pagination }) => {
+      if (pagination) {
+        setTotalPages(pagination.totalPages || 1);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filter, isActiveFilter]);
+
+  const goToPage = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    
+    const newParams = { ...Object.fromEntries(searchParams.entries()) };
+    newParams.page = newPage;
+    setSearchParams(newParams);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const updateFilters = (key, value) => {
+    const newParams = { ...Object.fromEntries(searchParams.entries()) };
+    if (value === "all") {
+      delete newParams[key];
+    } else {
+      newParams[key] = value;
+    }
+    // Reset page to 1 when filters change
+    delete newParams.page;
+    setSearchParams(newParams);
+  };
 
   const stats = useMemo(() => {
     const active = polls.filter((p) => p.is_active).length;
@@ -27,16 +68,6 @@ export default function HomePage() {
       { label: "Creators", value: new Set(polls.map((p) => p.creator_username).filter(Boolean)).size, icon: Users, tone: "text-cyan-300" },
     ];
   }, [polls]);
-
-  const filtered = polls.filter((p) => {
-    const query = search.trim().toLowerCase();
-    const matchSearch =
-      !query ||
-      p.question.toLowerCase().includes(query) ||
-      p.creator_username?.toLowerCase().includes(query);
-    const matchType = filter === "all" || p.poll_type === filter;
-    return matchSearch && matchType;
-  });
 
   return (
     <div className="min-h-screen pt-20 md:pt-0 pb-10 bg-[#090b10]">
@@ -77,29 +108,35 @@ export default function HomePage() {
           transition={{ delay: 0.08 }}
           className="rounded-xl border border-white/[0.08] bg-[#11141d] p-3 sm:p-4 mb-5"
         >
-          <div className="flex flex-col xl:flex-row gap-3">
-            <div className="flex-1">
-              <Input
-                className="bg-[#0d1018]"
-                placeholder="Search polls or creators..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                leftIcon={<Search className="w-4 h-4" />}
-              />
+          <div className="flex flex-col xl:flex-row gap-3 items-center">
+            <div className="flex-1 flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0 w-full">
+              <Filter className="w-4 h-4 text-slate-500 shrink-0" />
+              {STATUS_OPTIONS.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => updateFilters("is_active", s.value)}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap
+                    ${isActiveFilter === s.value
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "border-white/[0.08] text-slate-400 hover:border-blue-500/30 hover:text-slate-200 bg-white/[0.02]"}`}
+                >
+                  {s.label}
+                </button>
+              ))}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0 w-full xl:w-auto xl:justify-end">
               <SlidersHorizontal className="w-4 h-4 text-slate-500 shrink-0" />
               {TYPES.map((t) => (
                 <button
                   key={t}
-                  onClick={() => setFilter(t)}
+                  onClick={() => updateFilters("poll_type", t)}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap
                     ${filter === t
                       ? "bg-violet-600 border-violet-500 text-white"
                       : "border-white/[0.08] text-slate-400 hover:border-violet-500/30 hover:text-slate-200 bg-white/[0.02]"}`}
                 >
-                  {t === "all" ? "All" : POLL_TYPE_META[t]?.label}
+                  {t === "all" ? "All Types" : POLL_TYPE_META[t]?.label}
                 </button>
               ))}
             </div>
@@ -110,16 +147,42 @@ export default function HomePage() {
           <div className="flex justify-center py-20">
             <Spinner size="lg" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : polls.length === 0 ? (
           <div className="rounded-xl border border-white/[0.08] bg-[#11141d] text-center py-16 text-slate-500">
             <p className="text-lg font-medium text-slate-300 mb-1">No polls found</p>
-            <p className="text-sm">Try another search or filter.</p>
+            <p className="text-sm">Try another filter.</p>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
-            {filtered.map((poll, i) => (
-              <PollCard key={poll.id} poll={poll} index={i} />
-            ))}
+          <div className="space-y-6">
+            <div className="grid lg:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
+              {polls.map((poll, i) => (
+                <PollCard key={`${poll.id}-${i}`} poll={poll} index={i} />
+              ))}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-8 bg-[#11141d] border border-white/[0.08] rounded-xl p-3 max-w-fit mx-auto">
+                <button
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page === 1 || isLoading}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                <span className="text-sm font-medium text-slate-300">
+                  Page {page} of {totalPages}
+                </span>
+                
+                <button
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page === totalPages || isLoading}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -22,10 +22,40 @@ export const insertPollOption = async (poll_id, option_text) => {
   return result.rows[0];
 };
 
-// Get all polls with option counts, response counts, and current user's vote state.
-export const findAllPolls = async (user_id = null) => {
-  const result = await pool.query(
-    `SELECT
+export const findAllPolls = async (user_id = null, filters = {}) => {
+  const page = parseInt(filters.page, 10) || 1;
+  const limit = parseInt(filters.limit, 10) || 10;
+  const { poll_type, is_active } = filters;
+  const offset = (page - 1) * limit;
+
+  let baseQuery = `FROM polls p
+     JOIN users u ON p.creator_id = u.id
+     LEFT JOIN poll_options po ON po.poll_id = p.id
+     LEFT JOIN poll_responses pr ON pr.poll_id = p.id
+     LEFT JOIN poll_responses user_pr
+       ON user_pr.poll_id = p.id AND user_pr.user_id = $1`;
+
+  const values = [user_id];
+  const conditions = [];
+
+  if (poll_type && poll_type !== 'all') {
+    values.push(poll_type);
+    conditions.push(`p.poll_type = $${values.length}`);
+  }
+
+  if (is_active !== undefined && is_active !== 'all') {
+    values.push(is_active === 'true' || is_active === true);
+    conditions.push(`p.is_active = $${values.length}`);
+  }
+
+  let whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(' AND ') : '';
+
+  // Get total count for pagination metadata
+  const countQuery = `SELECT COUNT(DISTINCT p.id) AS total_count ${baseQuery} ${whereClause}`;
+  const countResult = await pool.query(countQuery, values);
+  const totalCount = parseInt(countResult.rows[0].total_count, 10);
+
+  let query = `SELECT
        p.id,
        p.question,
        p.poll_type,
@@ -36,17 +66,23 @@ export const findAllPolls = async (user_id = null) => {
        COUNT(DISTINCT po.id) AS option_count,
        COUNT(DISTINCT pr.id) AS response_count,
        COALESCE(BOOL_OR(user_pr.id IS NOT NULL), FALSE) AS has_voted
-     FROM polls p
-     JOIN users u ON p.creator_id = u.id
-     LEFT JOIN poll_options po ON po.poll_id = p.id
-     LEFT JOIN poll_responses pr ON pr.poll_id = p.id
-     LEFT JOIN poll_responses user_pr
-       ON user_pr.poll_id = p.id AND user_pr.user_id = $1
+     ${baseQuery} ${whereClause}
      GROUP BY p.id, u.username
-     ORDER BY p.created_at DESC`,
-    [user_id]
-  );
-  return result.rows;
+     ORDER BY p.created_at DESC`;
+
+  values.push(limit, offset);
+  query += ` LIMIT $${values.length - 1} OFFSET $${values.length}`;
+
+  const result = await pool.query(query, values);
+  return {
+    polls: result.rows,
+    pagination: {
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: parseInt(page, 10),
+      limit: parseInt(limit, 10)
+    }
+  };
 };
 
 // Get a single poll by ID including its options

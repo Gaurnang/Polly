@@ -49,8 +49,8 @@ export const createPoll = async ({ question, poll_type, options }, creator_id) =
   return fullPoll;
 };
 
-export const getAllPolls = async (user_id = null) => {
-  return await findAllPolls(user_id);
+export const getAllPolls = async (user_id = null, filters = {}) => {
+  return await findAllPolls(user_id, filters);
 };
 
 export const getPollById = async (id, user_id = null) => {
