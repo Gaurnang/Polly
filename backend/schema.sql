@@ -3,6 +3,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     username VARCHAR(255) UNIQUE NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,3 +46,14 @@ CREATE TABLE poll_responses (
 
     UNIQUE(user_id, poll_id)
 );
+
+CREATE TABLE IF NOT EXISTS magic_link_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    purpose VARCHAR(20) NOT NULL CHECK (purpose IN ('email_verification', 'password_reset')),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_token ON magic_link_tokens(token);

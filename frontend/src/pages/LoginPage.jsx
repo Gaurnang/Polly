@@ -33,7 +33,6 @@ export default function LoginPage() {
           transition={{ duration: 0.5 }}
           className="glass rounded-3xl p-8 sm:p-10 border border-white/[0.08]"
         >
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 mb-8 w-fit">
             <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
@@ -54,20 +53,27 @@ export default function LoginPage() {
               leftIcon={<Mail className="w-4 h-4" />}
               required
             />
-            <Input
-              label="Password"
-              type={showPw ? "text" : "password"}
-              placeholder="Your password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              leftIcon={<Lock className="w-4 h-4" />}
-              rightIcon={
-                <button type="button" onClick={() => setShowPw(!showPw)} className="flex h-5 w-5 items-center justify-center cursor-pointer text-slate-500 hover:text-slate-300">
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              }
-              required
-            />
+            <div>
+              <Input
+                label="Password"
+                type={showPw ? "text" : "password"}
+                placeholder="Your password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                leftIcon={<Lock className="w-4 h-4" />}
+                rightIcon={
+                  <button type="button" onClick={() => setShowPw(!showPw)} className="flex h-5 w-5 items-center justify-center cursor-pointer text-slate-500 hover:text-slate-300">
+                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
+                required
+              />
+              <div className="mt-1.5 text-right">
+                <Link to="/forgot-password" className="text-xs text-slate-500 hover:text-violet-400 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
 
             <Button
               type="submit"

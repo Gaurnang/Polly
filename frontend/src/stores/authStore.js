@@ -13,7 +13,19 @@ const useAuthStore = create(
       register: async ({ email, username, password }) => {
         set({ isLoading: true });
         try {
-          const { data } = await api.post("/auth/register", { email, username, password });
+          await api.post("/auth/register", { email, username, password });
+          return { success: true, needsVerification: true };
+        } catch (err) {
+          return { success: false, message: err.response?.data?.message || "Registration failed." };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      verifyEmail: async (token) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await api.get(`/auth/verify-email?token=${token}`);
           set({
             user: data.data.user,
             accessToken: data.data.accessToken,
@@ -21,7 +33,7 @@ const useAuthStore = create(
           });
           return { success: true };
         } catch (err) {
-          return { success: false, message: err.response?.data?.message || "Registration failed." };
+          return { success: false, message: err.response?.data?.message || "Verification failed." };
         } finally {
           set({ isLoading: false });
         }

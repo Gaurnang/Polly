@@ -2,16 +2,19 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import Navbar from "./components/layout/Navbar";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import LoginPage       from "./pages/LoginPage";
-import RegisterPage    from "./pages/RegisterPage";
-import HomePage        from "./pages/HomePage";
-import PollDetailPage  from "./pages/PollDetailPage";
-import CreatePollPage  from "./pages/CreatePollPage";
-import MyPollsPage     from "./pages/MyPollsPage";
+import LoginPage        from "./pages/LoginPage";
+import RegisterPage     from "./pages/RegisterPage";
+import HomePage         from "./pages/HomePage";
+import PollDetailPage   from "./pages/PollDetailPage";
+import CreatePollPage   from "./pages/CreatePollPage";
+import MyPollsPage      from "./pages/MyPollsPage";
 import MyVotedPollsPage from "./pages/MyVotedPollsPage";
-import BookmarksPage   from "./pages/BookmarksPage";
-import ProfilePage     from "./pages/ProfilePage";
-import useAuthStore    from "./stores/authStore";
+import BookmarksPage    from "./pages/BookmarksPage";
+import ProfilePage      from "./pages/ProfilePage";
+import VerifyEmailPage  from "./pages/VerifyEmailPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage  from "./pages/ResetPasswordPage";
+import useAuthStore     from "./stores/authStore";
 
 function PublicOnlyRoute({ children }) {
   const { isAuthenticated } = useAuthStore();
@@ -44,13 +47,16 @@ function AppRoutes() {
       <main className={isAuthenticated ? "md:pl-64" : ""}>
         <Routes>
           {/* Public */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login"    element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
-          <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+          <Route path="/"               element={<HomePage />} />
+          <Route path="/login"          element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+          <Route path="/register"       element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+          <Route path="/verify-email"   element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
+          <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
-          {/* Semi-public (polls visible to all, bookmark needs auth) */}
-          <Route path="/home"       element={<HomePage />} />
-          <Route path="/polls/:id"  element={<PollDetailPage />} />
+          {/* Semi-public */}
+          <Route path="/home"      element={<HomePage />} />
+          <Route path="/polls/:id" element={<PollDetailPage />} />
 
           {/* Protected */}
           <Route path="/create"    element={<ProtectedRoute><CreatePollPage /></ProtectedRoute>} />

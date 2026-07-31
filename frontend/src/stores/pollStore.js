@@ -1,47 +1,60 @@
 import { create } from "zustand";
 import api from "../api/axios";
 
-// Normalize legacy poll_type values from DB to match the app's type system
 const normalizeType = (t) => {
   if (t === "single_choice" || t === "multiple_choice" || t === "multiple") return "single";
   return t;
 };
-
 const normalizePoll = (p) => ({ ...p, poll_type: normalizeType(p.poll_type) });
 
 const usePollStore = create((set, get) => ({
+  // ── Public feed ────────────────────────────────────────
   polls: [],
-  currentPoll: null,
+  nextCursor: null,
+  hasMore: true,
+
+  // ── My polls ───────────────────────────────────────────
   myPolls: [],
+  myNextCursor: null,
+  myHasMore: true,
+
+  // ── My voted polls ─────────────────────────────────────
   myVotedPolls: [],
+  myVotedNextCursor: null,
+  myVotedHasMore: true,
+
+  // ── Shared ─────────────────────────────────────────────
+  currentPoll: null,
   bookmarks: [],
   currentResults: null,
   isLoading: false,
   isSubmitting: false,
 
-  // ── Polls ──────────────────────────────────────────────
+  // ── Public feed fetch ──────────────────────────────────
   fetchPolls: async (params = {}, append = false) => {
     set({ isLoading: true });
     try {
       const { data } = await api.get("/polls", { params });
-      const responseData = data.data || {};
-      const fetchedPolls = responseData.polls || [];
-      const newPolls = fetchedPolls.map(normalizePoll);
-      
-      set((state) => ({
-        polls: append ? [...state.polls, ...newPolls] : newPolls,
+      const d = data.data || {};
+      const newPolls = (d.polls || []).map(normalizePoll);
+      set((s) => ({
+        polls: append ? [...s.polls, ...newPolls] : newPolls,
+        nextCursor: d.nextCursor ?? null,
+        hasMore: d.hasMore ?? false,
       }));
-      
-      return { newPolls, pagination: responseData.pagination };
+      return { newPolls, nextCursor: d.nextCursor, hasMore: d.hasMore };
     } catch (err) {
       console.error("fetchPolls failed:", err?.response?.data || err.message);
-      if (!append) set({ polls: [] });
-      return { newPolls: [], pagination: null };
+      if (!append) set({ polls: [], nextCursor: null, hasMore: false });
+      return { newPolls: [], nextCursor: null, hasMore: false };
     } finally {
       set({ isLoading: false });
     }
   },
 
+  resetPolls: () => set({ polls: [], nextCursor: null, hasMore: true }),
+
+  // ── Single poll ────────────────────────────────────────
   fetchPollById: async (id) => {
     set({ isLoading: true, currentPoll: null });
     try {
@@ -49,13 +62,11 @@ const usePollStore = create((set, get) => ({
       const poll = normalizePoll(data.data.poll);
       set({ currentPoll: poll });
       return poll;
-    } catch {
-      return null;
-    } finally {
-      set({ isLoading: false });
-    }
+    } catch { return null; }
+    finally { set({ isLoading: false }); }
   },
 
+  // ── Create / update / delete / close ──────────────────
   createPoll: async (payload) => {
     set({ isSubmitting: true });
     try {
@@ -65,9 +76,7 @@ const usePollStore = create((set, get) => ({
       return { success: true, poll: newPoll };
     } catch (err) {
       return { success: false, message: err.response?.data?.message || "Failed to create poll." };
-    } finally {
-      set({ isSubmitting: false });
-    }
+    } finally { set({ isSubmitting: false }); }
   },
 
   updatePoll: async (id, payload) => {
@@ -83,9 +92,7 @@ const usePollStore = create((set, get) => ({
       return { success: true, poll: updated };
     } catch (err) {
       return { success: false, message: err.response?.data?.message || "Failed to update." };
-    } finally {
-      set({ isSubmitting: false });
-    }
+    } finally { set({ isSubmitting: false }); }
   },
 
   deletePoll: async (id) => {
@@ -116,26 +123,45 @@ const usePollStore = create((set, get) => ({
     }
   },
 
-  // ── My Polls ───────────────────────────────────────────
-  fetchMyPolls: async () => {
+  // ── My polls fetch ─────────────────────────────────────
+  fetchMyPolls: async (append = false) => {
     set({ isLoading: true });
     try {
-      const { data } = await api.get("/my-polls");
-      set({ myPolls: (data.data.polls ?? []).map(normalizePoll) });
-    } finally {
-      set({ isLoading: false });
-    }
+      const cursor = append ? get().myNextCursor : null;
+      const { data } = await api.get("/my-polls", { params: cursor ? { cursor } : {} });
+      const d = data.data || {};
+      const newPolls = (d.polls ?? []).map(normalizePoll);
+      set((s) => ({
+        myPolls: append ? [...s.myPolls, ...newPolls] : newPolls,
+        myNextCursor: d.nextCursor ?? null,
+        myHasMore: d.hasMore ?? false,
+      }));
+    } catch (err) {
+      console.error("fetchMyPolls failed:", err?.response?.data || err.message);
+    } finally { set({ isLoading: false }); }
   },
 
-  fetchMyVotedPolls: async () => {
+  resetMyPolls: () => set({ myPolls: [], myNextCursor: null, myHasMore: true }),
+
+  // ── My voted polls fetch ───────────────────────────────
+  fetchMyVotedPolls: async (append = false) => {
     set({ isLoading: true });
     try {
-      const { data } = await api.get("/my-votes");
-      set({ myVotedPolls: (data.data.polls ?? []).map(normalizePoll) });
-    } finally {
-      set({ isLoading: false });
-    }
+      const cursor = append ? get().myVotedNextCursor : null;
+      const { data } = await api.get("/my-votes", { params: cursor ? { cursor } : {} });
+      const d = data.data || {};
+      const newPolls = (d.polls ?? []).map(normalizePoll);
+      set((s) => ({
+        myVotedPolls: append ? [...s.myVotedPolls, ...newPolls] : newPolls,
+        myVotedNextCursor: d.nextCursor ?? null,
+        myVotedHasMore: d.hasMore ?? false,
+      }));
+    } catch (err) {
+      console.error("fetchMyVotedPolls failed:", err?.response?.data || err.message);
+    } finally { set({ isLoading: false }); }
   },
+
+  resetMyVotedPolls: () => set({ myVotedPolls: [], myVotedNextCursor: null, myVotedHasMore: true }),
 
   // ── Responses ──────────────────────────────────────────
   submitResponse: async (pollId, payload) => {
@@ -145,9 +171,7 @@ const usePollStore = create((set, get) => ({
       return { success: true };
     } catch (err) {
       return { success: false, message: err.response?.data?.message || "Failed to submit response." };
-    } finally {
-      set({ isSubmitting: false });
-    }
+    } finally { set({ isSubmitting: false }); }
   },
 
   // ── Results ────────────────────────────────────────────
@@ -156,9 +180,7 @@ const usePollStore = create((set, get) => ({
       const { data } = await api.get(`/polls/${pollId}/results`);
       set({ currentResults: data.data });
       return data.data;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   },
 
   clearResults: () => set({ currentResults: null }),
@@ -169,9 +191,7 @@ const usePollStore = create((set, get) => ({
     try {
       const { data } = await api.get("/bookmarks");
       set({ bookmarks: data.data.bookmarks });
-    } finally {
-      set({ isLoading: false });
-    }
+    } finally { set({ isLoading: false }); }
   },
 
   addBookmark: async (pollId) => {
@@ -194,9 +214,7 @@ const usePollStore = create((set, get) => ({
     }
   },
 
-  isBookmarked: (pollId) => {
-    return get().bookmarks.some((b) => String(b.poll_id) === String(pollId));
-  },
+  isBookmarked: (pollId) => get().bookmarks.some((b) => String(b.poll_id) === String(pollId)),
 }));
 
 export default usePollStore;
