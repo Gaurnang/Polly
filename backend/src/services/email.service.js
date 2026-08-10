@@ -43,8 +43,8 @@ export const sendPasswordResetEmail = async ({
   token,
   expiresInMinutes,
 }) => {
-  const resetUrl =CLIENT_URL
-    `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+  const resetUrl =
+    `${process.env.CLIENT_URL}/reset-password?token=${token}`;
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,

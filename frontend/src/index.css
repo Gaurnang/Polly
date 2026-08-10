@@ -109,7 +109,6 @@ body {
   color: #e2e8f0;
   transition: border-color 0.2s, box-shadow 0.2s;
   width: 100%;
-  padding: 0.625rem 0.875rem;
   font-size: 0.9375rem;
   outline: none;
 }

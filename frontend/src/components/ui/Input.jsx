@@ -22,6 +22,7 @@ export default function Input({
         <input
           className={cn(
             "input-field",
+            "px-3.5 py-2.5",
             leftIcon && "pl-11",
             rightIcon && "pr-11",
             error && "border-red-500/60 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.15)]",
