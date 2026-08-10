@@ -1,31 +1,78 @@
 import { Resend } from "resend";
-import { renderEmail } from "../templates/magicLinkEmail.js";
 
-if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === "your_resend_api_key_here") {
-  console.warn("WARNING: RESEND_API_KEY is not configured. Emails will not be sent.");
-}
+const resend = new Resend(
+  process.env.RESEND_API_KEY
+);
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@polly.app";
+export const sendVerificationEmail = async ({
+  to,
+  token,
+  expiresInMinutes,
+}) => {
+  const verificationUrl =
+    `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
 
-export const sendMagicLinkEmail = async ({ to, purpose, magicLink, expiresInMinutes }) => {
-  const { subject, html, text } = renderEmail({ purpose, magicLink, expiresInMinutes });
-
-  console.log(`[email] Sending "${subject}" to ${to} from ${FROM_EMAIL}`);
-  console.log(`[email] Magic link: ${magicLink}`);
-
-  const { data, error } = await resend.emails.send({
-    from: FROM_EMAIL,
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
     to,
-    subject,
-    html,
-    text,
+    subject: "Verify your email",
+    html: `
+      <h2>Verify your email</h2>
+
+      <p>
+        Thanks for creating an account.
+      </p>
+
+      <p>
+        Click the link below to verify your email.
+      </p>
+
+      <a href="${verificationUrl}">
+        Verify Email
+      </a>
+
+      <p>
+        This link expires in ${expiresInMinutes} minutes.
+      </p>
+    `,
   });
+};
 
-  if (error) {
-    console.error("[email] Resend error:", JSON.stringify(error));
-    throw new Error(`Failed to send email: ${JSON.stringify(error)}`);
-  }
+export const sendPasswordResetEmail = async ({
+  to,
+  token,
+  expiresInMinutes,
+}) => {
+  const resetUrl =
+    `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
-  console.log(`[email] Sent successfully, id: ${data?.id}`);
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
+    to,
+    subject: "Reset your password",
+    html: `
+      <h2>Reset your password</h2>
+
+      <p>
+        We received a request to reset your password.
+      </p>
+
+      <p>
+        Click the link below to choose a new password.
+      </p>
+
+      <a href="${resetUrl}">
+        Reset Password
+      </a>
+
+      <p>
+        This link expires in ${expiresInMinutes} minutes.
+      </p>
+
+      <p>
+        If you did not request this,
+        you can safely ignore this email.
+      </p>
+    `,
+  });
 };

@@ -13,7 +13,16 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
-  const { register, isLoading } = useAuthStore();
+  const { register, resendVerification, isLoading } = useAuthStore();
+
+  const handleResend = async () => {
+    const result = await resendVerification(registeredEmail);
+    if (result.success) {
+      toast.success(result.message || "Verification email sent!");
+    } else {
+      toast.error(result.message);
+    }
+  };
 
   const validate = () => {
     const e = {};
@@ -72,12 +81,25 @@ export default function RegisterPage() {
               <p className="text-slate-500 text-xs leading-relaxed">
                 Click the link in the email to verify your account and get started. The link expires in 15 minutes.
               </p>
-              <p className="text-slate-600 text-xs mt-6">
-                Already verified?{" "}
-                <Link to="/login" className="text-violet-400 hover:text-violet-300">
-                  Sign in
-                </Link>
-              </p>
+              
+              <div className="mt-6 space-y-4">
+                <Button 
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleResend}
+                  isLoading={isLoading}
+                >
+                  Resend verification email
+                </Button>
+                <p className="text-slate-600 text-xs">
+                  Already verified?{" "}
+                  <Link to="/login" className="text-violet-400 hover:text-violet-300">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
             </motion.div>
           ) : (
             <motion.div
