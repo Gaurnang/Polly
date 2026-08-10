@@ -10,7 +10,7 @@ export const sendVerificationEmail = async ({
   expiresInMinutes,
 }) => {
   const verificationUrl =
-    `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
@@ -43,7 +43,7 @@ export const sendPasswordResetEmail = async ({
   token,
   expiresInMinutes,
 }) => {
-  const resetUrl =
+  const resetUrl =CLIENT_URL
     `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
   await resend.emails.send({
