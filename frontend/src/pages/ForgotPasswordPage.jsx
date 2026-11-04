@@ -19,8 +19,8 @@ export default function ForgotPasswordPage() {
     try {
       await api.post("/auth/password-reset/request", { email });
       setSubmitted(true);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }

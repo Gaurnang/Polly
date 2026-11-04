@@ -98,22 +98,16 @@ export const validateToken = async (
 // ------------------------------------
 // Verify email
 // ------------------------------------
-export const verifyEmail = async (
-  tokenValue
-) => {
+export const verifyEmail = async ( tokenValue ) => {
+
   // 1. Validate token
-  const record = await validateToken(
-    tokenValue,
-    "email_verification"
-  );
+  const record = await validateToken( tokenValue, "email_verification" );
 
   // 2. Mark token as used
   await markTokenUsed(record.id);
 
   // 3. Verify user's email
-  const user = await setEmailVerified(
-    record.user_id
-  );
+  const user = await setEmailVerified( record.user_id );
 
   if (!user) {
     throw {

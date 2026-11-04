@@ -26,8 +26,8 @@ export default function ResetPasswordPage() {
       setError("Invalid reset link. Please request a new one.");
       return;
     }
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
             <Input
               label="New password"
               type={showPw ? "text" : "password"}
-              placeholder="Min 8 characters"
+              placeholder="Min 6 characters"
               value={newPassword}
               onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
               leftIcon={<Lock className="w-4 h-4" />}
